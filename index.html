@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Подбор настольных игр</title>
+
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="css/general.css" />
+    <link rel="stylesheet" href="css/games.css" />
+    <link rel="stylesheet" href="css/auth.css" />
+  </head>
+  <body>
+    <header class="bg-primary text-white text-center py-4">
+      <div class="header-content">
+        <h1>Подбор настольных игр</h1>
+        <div class="tabs-container">
+          <button class="btn btn-light tab-button" onclick="showTab('mainContent')">Главная</button>
+          <button class="btn btn-light tab-button" onclick="showTab('favoritesContent')">Избранное</button>
+          <button class="btn btn-light tab-button" onclick="showTab('aboutContent')">О нас</button>
+        </div>
+      </div>
+      <button class="btn btn-light login-button" onclick="login()">Войти</button>
+    </header>
+
+    <div class="container mt-4" id="mainContent">
+      <h2>Выберите параметры игры</h2>
+    
+      <div class="mb-3">
+        <label for="playerCount" class="form-label">Количество игроков:</label>
+        <select id="playerCount" class="form-select">
+          <option value="">Любое количество</option>
+          <option value="2">2 игрока</option>
+          <option value="3">3 игрока</option>
+          <option value="4">4 игрока</option>
+          <option value="5">5 и более игроков</option>
+        </select>
+      </div>
+    
+      <div class="mb-3">
+        <label for="gameType" class="form-label">Тип игры:</label>
+        <select id="gameType" class="form-select">
+          <option value="">Любой тип</option>
+          <option value="party">Вечеринка</option>
+          <option value="strategy">Стратегия</option>
+          <option value="family">Семейные</option>
+          <option value="cooperative">Кооперативные</option>
+        </select>
+      </div>
+    
+      <button class="btn btn-primary mb-4" onclick="findGames()">Подобрать игры</button>
+    
+      <div class="mb-3">
+        <label for="searchBar" class="form-label">Поиск игры:</label>
+        <input
+          type="text"
+          id="searchBar"
+          class="form-control"
+          placeholder="Введите название игры"
+          oninput="searchGames()"
+        />
+      </div>
+    
+      <h2 class="mt-4">Рекомендуемые игры:</h2>
+      <ul class="list-group" id="gamesList"></ul>
+    
+      <!-- Пагинация -->
+      <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center" id="pagination">
+          <li class="page-item">
+            <a class="page-link" href="#" onclick="changePage(-1)">&laquo;</a>
+          </li>
+          <!-- Номера страниц будут добавлены через JavaScript -->
+          <li class="page-item">
+            <a class="page-link" href="#" onclick="changePage(1)">&raquo;</a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+
+    <div class="container mt-4" id="favoritesContent" style="display: none;">
+      <h2>Избранные игры:</h2>
+      <ul class="list-group" id="favoritesList"></ul>
+    </div>
+
+    <div class="container mt-4" id="aboutContent" style="display: none;">
+      <h2>О нас</h2>
+      <p>Мы — команда энтузиастов настольных игр, которые помогают вам найти идеальную игру для любого случая.</p>
+      <h3>Контактные данные:</h3>
+      <p>Email: support@boardgames.com</p>
+      <p>Телефон: +7 (988) 317-67-20</p>
+
+      <h3>Оставить сообщение в поддержку:</h3>
+      <form id="supportForm" onsubmit="submitSupportForm(event)">
+        <div class="mb-3">
+          <label for="supportName" class="form-label">Ваше имя:</label>
+          <input type="text" id="supportName" class="form-control" required />
+        </div>
+        <div class="mb-3">
+          <label for="supportEmail" class="form-label">Ваш Email:</label>
+          <input type="email" id="supportEmail" class="form-control" required />
+        </div>
+        <div class="mb-3">
+          <label for="supportMessage" class="form-label">Сообщение:</label>
+          <textarea id="supportMessage" class="form-control" rows="5" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Отправить</button>
+      </form>
+    </div>
+
+    <div class="container mt-4" id="gameDetailsContent" style="display: none;">
+      <h2 id="gameDetailsTitle"></h2>
+      <img id="gameDetailsImage" src="" alt="Game Image" class="game-details-image">
+      <p id="gameDetailsDescription"></p>
+
+      <!-- Блок для комментариев -->
+      <div class="comments-section">
+        <h3>Комментарии:</h3>
+        <div id="commentsList"></div>
+        <form id="commentForm" onsubmit="submitComment(event)">
+          <div class="mb-3">
+            <label for="commentText" class="form-label">Оставить комментарий:</label>
+            <textarea id="commentText" class="form-control" rows="3" required></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Отправить</button>
+        </form>
+      </div>
+
+      <button class="btn btn-primary" onclick="hideGameDetails()">Назад к списку игр</button>
+    </div>
+
+    <div class="modal fade" id="authModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 id="authTitle" class="modal-title">Вход</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="authForm" onsubmit="submitAuthForm(event)">
+              <div class="mb-3">
+                <label for="username" class="form-label">Имя пользователя:</label>
+                <input type="text" id="username" class="form-control" required />
+              </div>
+
+              <div class="mb-3">
+                <label for="email" class="form-label">Email:</label>
+                <input type="email" id="email" class="form-control" required />
+              </div>
+
+              <div class="mb-3">
+                <label for="password" class="form-label">Пароль:</label>
+                <input type="password" id="password" class="form-control" required />
+              </div>
+
+              <button type="submit" class="btn btn-primary w-100" id="authSubmitButton">Войти</button>
+            </form>
+            <p id="toggleAuth" class="text-center mt-3 text-primary" style="cursor: pointer;" onclick="toggleAuthMode()">
+              Нет аккаунта? Зарегистрируйтесь
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
