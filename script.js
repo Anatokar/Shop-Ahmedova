@@ -5,7 +5,7 @@ let comments = JSON.parse(localStorage.getItem('comments')) || {};
 let currentPage = 1;
 const gamesPerPage = 10;
 
-fetch('games.json')
+fetch('http://localhost:80/get_games.php')
   .then(response => response.json())
   .then(data => {
     gamesDatabase = data;
@@ -103,7 +103,7 @@ function displayGames(games, page = 1) {
 
       const favoriteIcon = document.createElement('i');
       favoriteIcon.classList.add('fas', 'fa-star', 'favorite-icon');
-      if (favorites[game.name]) {
+      if (favorites[game.id]) {
         favoriteIcon.classList.add('favorited');
       }
       favoriteIcon.addEventListener('click', (e) => {
@@ -264,7 +264,100 @@ function showGameDetails(game) {
   document.getElementById('aboutContent').style.display = 'none';
   gameDetailsContent.style.display = 'block';
 
-  displayComments(game.name);
+  // Загружаем и отображаем комментарии с сервера
+  loadComments(game.name);
+}
+
+// Загрузка комментариев с сервера и обновление локального объекта + отображение
+function loadComments(gameName) {
+  fetch('http://localhost/get_comments.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ game_name: gameName })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Обновляем локальные комментарии для игры
+      comments[gameName] = data.comments;
+      localStorage.setItem('comments', JSON.stringify(comments));
+      displayComments(gameName);
+    } else {
+      console.error('Ошибка загрузки комментариев:', data.error);
+    }
+  })
+  .catch(error => {
+    console.error('Ошибка при запросе комментариев:', error);
+  });
+}
+
+// Отправка нового комментария на сервер
+function submitComment(event) {
+  event.preventDefault();
+
+  const username = document.querySelector('.login-button').textContent.replace('Привет, ', '');
+  const commentText = document.getElementById('commentText').value.trim();
+  const gameName = document.getElementById('gameDetailsTitle').textContent;
+
+  if (!username || username === 'Войти') {
+    alert('Пожалуйста, войдите в систему, чтобы оставить комментарий.');
+    return;
+  }
+
+  if (!commentText) {
+    alert('Пожалуйста, введите текст комментария.');
+    return;
+  }
+
+  fetch('http://localhost/post_comment.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, gameName, commentText })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      // Обновляем локальные комментарии и сохраняем
+      comments[gameName] = data.comments;
+      localStorage.setItem('comments', JSON.stringify(comments));
+
+      // Очищаем поле и отображаем комментарии
+      document.getElementById('commentText').value = '';
+      displayComments(gameName);
+    } else {
+      alert(data.error || 'Ошибка при отправке комментария');
+    }
+  })
+  .catch(() => {
+    alert('Ошибка сети');
+  });
+}
+
+// Отображение комментариев из локального объекта comments
+function displayComments(gameName) {
+  const commentsList = document.getElementById('commentsList');
+  commentsList.innerHTML = '';
+
+  if (comments[gameName] && comments[gameName].length > 0) {
+    comments[gameName].forEach(comment => {
+      const commentDiv = document.createElement('div');
+      commentDiv.classList.add('comment');
+
+      const username = document.createElement('strong');
+      username.textContent = comment.username + ': ';
+      username.classList.add('comment-username');
+
+      const text = document.createElement('span');
+      text.textContent = comment.text;
+      text.classList.add('comment-text');
+
+      commentDiv.appendChild(username);
+      commentDiv.appendChild(text);
+      commentsList.appendChild(commentDiv);
+    });
+  } else {
+    commentsList.innerHTML = '<p>Пока нет комментариев.</p>';
+  }
 }
 
 function hideGameDetails() {
@@ -356,88 +449,39 @@ function submitAuthForm(event) {
   }
 }
 
-function registerUser(username, email, password) {
-  const users = JSON.parse(localStorage.getItem('users')) || {};
-
-  if (users[username]) {
-    alert('Пользователь с таким именем уже существует!');
-    return;
-  }
-
-  users[username] = { email, password };
-  localStorage.setItem('users', JSON.stringify(users));
-  alert('Регистрация прошла успешно! Войдите в систему.');
-  toggleAuthMode();
-}
-
-function loginUser(username, password) {
-  const users = JSON.parse(localStorage.getItem('users')) || {};
-
-  if (!users[username]) {
-    alert('Пользователь не найден!');
-    return;
-  }
-
-  if (users[username].password !== password) {
-    alert('Неправильный пароль!');
-    return;
-  }
-
-  alert(`Добро пожаловать, ${username}!`);
-  closeAuthModal();
-  document.querySelector('.login-button').textContent = `Привет, ${username}`;
-}
-
-// Функции для работы с комментариями
-function submitComment(event) {
-  event.preventDefault();
-  const username = document.querySelector('.login-button').textContent.replace('Привет, ', '');
-  const commentText = document.getElementById('commentText').value.trim();
-  const gameName = document.getElementById('gameDetailsTitle').textContent;
-
-  if (!username || username === 'Войти') {
-    alert('Пожалуйста, войдите в систему, чтобы оставить комментарий.');
-    return;
-  }
-
-  if (!commentText) {
-    alert('Пожалуйста, введите текст комментария.');
-    return;
-  }
-
-  if (!comments[gameName]) {
-    comments[gameName] = [];
-  }
-
-  comments[gameName].push({ username, text: commentText });
-  localStorage.setItem('comments', JSON.stringify(comments));
-
-  document.getElementById('commentText').value = '';
-  displayComments(gameName);
-}
-
-function displayComments(gameName) {
-  const commentsList = document.getElementById('commentsList');
-  commentsList.innerHTML = '';
-
-  if (comments[gameName] && comments[gameName].length > 0) {
-    comments[gameName].forEach(comment => {
-      const commentDiv = document.createElement('div');
-      commentDiv.classList.add('comment');
-
-      const username = document.createElement('strong');
-      username.textContent = comment.username + ': ';
-      username.classList.add('comment-username');
-
-      const text = document.createElement('span');
-      text.textContent = comment.text;
-      text.classList.add('comment-text');
-
-      commentDiv.appendChild(username);
-      commentDiv.appendChild(text);
-      commentsList.appendChild(commentDiv);
+async function registerUser(username, email, password) {
+  try {
+    const res = await fetch('http://localhost/register.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, email, password })
     });
-  } else {
-    commentsList.innerHTML = '<p>Пока нет комментариев.</p>';
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Ошибка регистрации');
+
+    alert(data.message);
+    toggleAuthMode(); // переключить форму на вход
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+async function loginUser(username, password) {
+  try {
+    const res = await fetch('http://localhost/login.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Ошибка входа');
+
+    alert(`Добро пожаловать, ${data.username}!`);
+    closeAuthModal();
+    document.querySelector('.login-button').textContent = `Привет, ${data.username}`;
+  } catch (err) {
+    alert(err.message);
   }
 }
