@@ -5,6 +5,9 @@ let comments = JSON.parse(localStorage.getItem('comments')) || {};
 let currentPage = 1;
 const gamesPerPage = 10;
 
+let notificationCheckInterval;
+let currentUser = null;
+
 fetch('http://localhost:80/get_games.php')
   .then(response => response.json())
   .then(data => {
@@ -449,24 +452,7 @@ function submitAuthForm(event) {
   }
 }
 
-async function registerUser(username, email, password) {
-  try {
-    const res = await fetch('http://localhost/register.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, email, password })
-    });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Ошибка регистрации');
-
-    alert(data.message);
-    toggleAuthMode(); // переключить форму на вход
-  } catch (err) {
-    alert(err.message);
-  }
-}
-
+// Изменяем функцию loginUser
 async function loginUser(username, password) {
   try {
     const res = await fetch('http://localhost/login.php', {
@@ -478,10 +464,79 @@ async function loginUser(username, password) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Ошибка входа');
 
-    alert(`Добро пожаловать, ${data.username}!`);
-    closeAuthModal();
+    currentUser = data.username;
     document.querySelector('.login-button').textContent = `Привет, ${data.username}`;
+    closeAuthModal();
+    
+    // Запускаем проверку уведомлений
+    startNotificationCheck();
+    checkNotifications();
   } catch (err) {
-    alert(err.message);
+    showNotification(err.message, 'error');
   }
+}
+
+// Изменяем функцию registerUser
+async function registerUser(username, email, password) {
+  try {
+    const res = await fetch('http://localhost/register.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, email, password })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Ошибка регистрации');
+
+    toggleAuthMode(); // переключить форму на вход
+    showNotification('Регистрация прошла успешно. Теперь вы можете войти.', 'success');
+  } catch (err) {
+    showNotification(err.message, 'error');
+  }
+}
+
+// Добавляем новые функции для работы с уведомлениями
+function startNotificationCheck() {
+  // Проверяем уведомления каждые 30 секунд
+  notificationCheckInterval = setInterval(checkNotifications, 30000);
+}
+
+async function checkNotifications() {
+  if (!currentUser) return;
+
+  try {
+    const response = await fetch('http://localhost/get_notifications.php');
+    const data = await response.json();
+    
+    if (data.success && data.notifications.length > 0) {
+      data.notifications.forEach(notification => {
+        showNotification(notification.message, 'info');
+        markNotificationAsRead(notification.id);
+      });
+    }
+  } catch (error) {
+    console.error('Ошибка при проверке уведомлений:', error);
+  }
+}
+
+function markNotificationAsRead(notificationId) {
+  fetch('http://localhost/mark_notification_read.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: notificationId })
+  }).catch(error => console.error('Ошибка при отметке уведомления:', error));
+}
+
+// Функция для показа уведомлений в модальном окне
+function showNotification(message, type = 'info') {
+  const notificationModal = new bootstrap.Modal(document.getElementById('notificationModal'));
+  const notificationContent = document.getElementById('notificationContent');
+  
+  // Очищаем предыдущие классы
+  notificationContent.className = 'modal-content';
+  // Добавляем класс в зависимости от типа уведомления
+  notificationContent.classList.add(`notification-${type}`);
+  
+  document.getElementById('notificationMessage').textContent = message;
+  notificationModal.show();
 }
